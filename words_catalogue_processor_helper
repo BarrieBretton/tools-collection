@@ -1,0 +1,145 @@
+doc = {
+	'unorganised': {
+		"notes" : [
+			"sample notes in stray",
+			"lol this is just too dum"
+		],
+		"catalogue": {
+			"stray word": [
+				"definition",
+				["more notes"]
+			]
+		}
+	},
+
+	'Test Section': {
+		'unorganised': {
+			'notes': [
+				'omg wtg',
+				'hehe'
+			],
+			'catalogue': {
+				'some word': [
+					'some meaning',
+					None
+				],
+				'lol': [
+					'wth',
+					None
+				],
+				'test': None
+				'test2': [
+					None,
+					['No use of such lang is permitted']
+				]
+			}
+		],
+
+		'subsections': {
+			'a sub': {
+				'unorganised notes' : [
+					'don\'t at me'
+				],				
+				'catalogue': {
+					'damn': [
+						'ni**a',
+						[
+							'can\'t say that sorry',
+							'yeah really, you can get cancelled'
+						]
+					]
+				}
+			},
+			'another sub': {
+				'unorganised notes' : [
+					'just some notes'
+				],
+				'catalogue': None
+			},
+			'empty sub': None
+		}
+	},
+	'Empty sec': None
+}
+
+
+doc = {
+	'unorganised': {
+		'notes' : [],
+		'catalogue': [
+			'word1': ['meaning1', None],
+			'word2': ['meaning1', ['note1', 'note2']],
+			'word3': None,
+			'word4': None,
+		]
+	},
+
+	'section1': {
+		'unorganised': {
+			'notes' : [],
+			'catalogue': [
+				'word1': ['meaning1', None],
+				'word2': ['meaning1', ['note1', 'note2']],
+				'word3': None,
+				'word4': None,
+			]
+		},
+
+		'subsections': {
+			'subsection1': {
+				'unorganised notes': [],
+				'catalogue': {
+					'word1': ['meaning1', None],
+					'word2': ['meaning1', ['note1', 'note2']],
+					'word3': None,
+					'word4': None,
+				}
+			},
+			'subsection2': {
+				'unorganised notes': [],
+				'catalogue': {
+					'word1': ['meaning1', None],
+					'word2': ['meaning1', ['note1', 'note2']],
+					'word3': None,
+					'word4': None,
+				}
+			},
+		}
+	},
+
+	'section2': {
+		'unorganised': {
+			'notes' : [],
+			'catalogue': [
+				'word1': ['meaning1', None],
+				'word2': ['meaning1', ['note1', 'note2']],
+				'word3': None,
+				'word4': None,
+			]
+		},
+
+		'subsections': {
+			'subsection1': {
+				'unorganised notes': [],
+				'catalogue': {
+					'word1': ['meaning1', None],
+					'word2': ['meaning1', ['note1', 'note2']],
+					'word3': None,
+					'word4': None,
+				}
+			},
+			'subsection2': {
+				'unorganised notes': [],
+				'catalogue': {
+					'word1': ['meaning1', None],
+					'word2': ['meaning1', ['note1', 'note2']],
+					'word3': None,
+					'word4': None,
+				}
+			},
+		}
+	},
+}
+
+
+

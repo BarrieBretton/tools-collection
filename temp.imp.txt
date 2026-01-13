@@ -1,0 +1,150 @@
+import os
+
+exts = '.jpg .jpeg .mkv .webp .webm .png .bmp .mka .mp3 .gif .wav .mp4 .enc'.split()
+exts = tuple(exts)
+
+def get_files(source, exts):
+    matches = []
+    for root, _, filenames in os.walk(source):
+        for filename in filenames:
+            if filename.endswith(exts):
+                matches.append(os.path.join(root, filename))
+    return matches
+
+###############
+f = get_files(dpath, exts='')
+df = [(i, os.path.join(os.path.split(i)[0], '_'+os.path.split(i)[1][1:])) for i in f if os.path.split(i)[1].startswith('.')]
+
+failed = []
+for i, j in df:
+    try:
+    shutil.move(i, j)
+    except Exception:
+        failed.append(i)
+
+###############
+
+import os
+import glob
+
+def get_orphans(og, new_stash):
+    a_ = list(glob.iglob(f'{og}/**/*', recursive=True))
+    b_ = list(glob.iglob(f'{new_stash}/**/*', recursive=True))
+    a_ = [os.path.split(i)[1].rstrip('.enc') for i in a_ if '.' in i]
+    b_ = [i for i in b_ if '.' in i]
+    not_added = [i for i in b_ if not os.path.split(i)[1].rstrip('.enc') in a_]
+    return a_, b_, not_added
+
+a_, b_, not_added = get_orphans(og, new_stash); len(not_added)
+
+###############
+from difPy import dif
+a = dif(p)
+l = a.lower_quality
+r = a.result
+
+dupe_dirs = [
+    r'/media/vivojay/VIVOSANDISK/VIVAN/personal/__past__/dupes',
+    r'/media/vivojay/VIVOSANDISK/VIVAN/personal/__past__/l'
+]
+
+def proc_results(r, dupe_dirs):
+    rs = [[i['location']] + [x['location'] for x in i['matches'].values()] for i in r.values()]
+    rs = [[j for j in i if os.path.exists(j)] for i in rs]
+    dupes = [j for i in rs for j in i if os.path.split(j)[0] in dupe_dirs]
+    rs = [[x for x in i if os.path.split(x)[0] not in dupe_dirs] for i in rs]
+    rs = [i for i in rs if len(i) > 1]
+    return dupes, rs
+
+import time
+import subprocess as sp
+import sys
+for indi, i in enumerate(rs):
+    print(f'\n\n{i}')
+    input(f'Press enter to continue [{indi + 1} / {len(rs)}] :> ')
+    for indj, j in enumerate(i):
+        if os.path.isfile(j):
+            print(f'  {indj+1}/{len(i)} > {j}')
+            if sys.platform in ['linux']:
+                sp.Popen(f'open "{j}"', shell=1)
+            else:
+                sp.Popen(['start', '', j], shell=1)
+            #time.sleep(0.2)
+
+###############
+failed = []
+for i in l:
+    try:
+        shutil.move(i, dest)
+    except Exception:
+        failed.append(i)
+
+###############
+dest = '/media/vivojay/VIVOSANDISK/VIVAN/personal/orphans'
+
+failed = []
+for i in not_added:
+    try:
+        shutil.move(i, dest)
+    except Exception:
+        failed.append(i)
+
+###############
+# Check if dupes of one dir exists within another (significantly reduces comparisons required)
+import os
+from PIL import Image
+
+exts2 = '.jpg .jpeg .webp .png .bmp'.split()
+exts2 = tuple(exts2)
+
+def dupes_of_l_in_r(ldir, rdir, exts):
+    global dupes, lfiles, rfiles, lhashes, rhashes
+    dupes = []
+    lfiles = get_files(ldir, exts) # Lesser files generally
+    rfiles = get_files(rdir, exts) # More files generally
+    lfcount, rfcount = len(lfiles), len(rfiles)
+    lhashes = get_hashes(lfiles, 'left dir')
+    rhashes = get_hashes(rfiles, 'right dir')
+    # [[(lf[0], rf[0]) for rf in rfiles if image_diff(lf[1], rf[1]) == 0] for lf in lfiles]
+    if lfcount > rfcount:
+        lfiles, rfiles = rfiles, lfiles
+        lfcount, rfcount = rfcount, lfcount
+    for lind, lf in enumerate(lhashes):
+        for rind, rf in enumerate(rhashes):
+            print(f"> {lind+1}/{lfcount}: {rind+1}/{rfcount}", end='\r')
+            if lf[1] - rf[1] == 0:
+                print('  -> find dupe!')
+                dupes.append((lf[0], rf[0]))
+    return dupes
+
+def get_hashes(files, note=''):
+    hashes = []
+    l = len(files)
+    for ind, i in enumerate(files):
+        with Image.open(i) as img:
+            try:
+                hashes.append(get_hash(i))
+            except Exception: #OSError:
+                raise
+                print("ERR:", i)
+        print(f"Scanned {note}: {ind+1}/{l}", end='\r')
+    print()
+    return hashes
+
+def get_hash(file):
+    with Image.open(file) as img:
+        try:
+            return imagehash.average_hash(img)
+        except Exception: #OSError:
+            raise
+            print("ERR:", i)
+
+for indi, i in enumerate(rfiles):
+    rh = get_hash(i)
+    if rh - h == 0:
+            print("\ndupes (v)")
+    print(f"{indi + 1}/{len(rfiles)}", end='\r')
+
+###############
+
+

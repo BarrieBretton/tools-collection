@@ -1,0 +1,183 @@
+# TODO: Add support for long filenames
+# TODO: Add support for hidden linux files (filenames starting with '.' and other such stuff)
+
+import os
+import sys
+import glob
+import contextlib
+
+# Pygame replaced with vlc
+# os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
+# import pygame
+
+vlc = None
+with contextlib.suppress(ImportError):
+	import vlc
+
+if sys.platform == 'win32':
+	startup_sound = r"C:\Users\Vivo Jay\Desktop\mplayer-4\test\res\first_boot_startup_sound.mp3"
+
+elif sys.platform == 'linux':
+	startup_sound = r"/media/vivojay/Windows/Users/Vivo Jay/Desktop/mplayer-4/test/res/first_boot_startup_sound.mp3"
+
+# Pygame replaced with vlc
+# pygame.mixer.init()
+# pygame.mixer.music.load(startup_sound)
+
+
+"""
+import importlib.util
+
+spec = importlib.util.spec_from_file_location("module.n", "")
+foo = importlib.util.module_from_spec(spec)
+sys.modules["module.name"] = foo
+spec.loader.exec_module(foo)
+"""
+
+sys.path.append(r'D:\Vivo Jay\tools')
+sys.path.append(r'/media/vivojay/DATA/Vivo Jay/tools')
+# import file_securer_vivo_multi_threaded as fm
+import file_securer_vivo_multi_proc as fm
+
+# old_pass = "mae--whitman"
+latest_pass = "maethebae"
+
+OG_EXTS = (".jpg"
+		   ".webp"
+		   ".png"
+		   ".bmp"
+		   ".jpeg")
+
+ADD_GIF_EXTS = (".jpg",
+				".webp"
+				".png"
+				".bmp"
+				".jpeg"
+				".gif")
+
+ALL_MEDIA_EXTS = (".jpg",
+				  ".webp",
+				  ".png",
+				  ".bmp",
+				  ".jpeg",
+				  ".gif",
+				  ".mp4",
+				  ".mkv",
+				  ".mka",
+				  ".wma",
+				  ".amr",
+				  ".mov",
+				  ".avi",
+				  ".webm",
+				  ".webp",
+				  ".wmv")
+
+def cryptographic_operation(dpaths, exts, enc, fpaths=[]):
+
+	if enc:
+		for fpath in fpaths:
+			fm.file_enc(fpath,
+						pwd=latest_pass,
+						replace=True,
+						display=True)
+	else:
+		for fpath in fpaths:
+			fm.file_dec(fpath,
+						pwd=latest_pass,
+						replace=True,
+						display=True)
+
+	fm.secure_dir(dpaths,
+				  latest_pass,
+				  enc=enc,
+				  exts=exts,
+				  recurse=True,
+				  dry_run=False,
+				  quiet=False)
+
+"""
+def dec(dpaths, exts):
+	fm.secure_dir(dpaths, latest_pass, enc=False, exts=exts, recurse=True, dry_run=False, quiet=False)
+
+def enc(dpaths, exts):
+	fm.secure_dir(dpaths, latest_pass, enc=True, exts=exts, recurse=True, dry_run=False, quiet=False)
+"""
+
+def cm_type(dpaths, thresh=0.5):
+	t_count = 0 # Total recursively iterated file count in all dirs
+	enc_count = 0 # Total recursively iterated encrypted file count in all dirs
+
+	for dpath in dpaths:
+		files = list(glob.iglob(f'{dpath}/**/*', recursive=True))
+		t_count += len(files)
+		enc_count += [os.path.splitext(i)[1] == '.enc' for i in files].count(True)
+
+	return enc_count/t_count > thresh # Means, more than half (or thresh factor) of the total files are encrypted
+
+def run():
+	while True:
+		dpaths = []
+
+		while dpaths == []:
+			try:
+				upaths = set(input("Enter dir paths separated by commas(no spaces): ").split(','))
+				dpaths = [i for i in upaths if os.path.isdir(i)]
+				fpaths = [i for i in upaths if os.path.isfile(i)]
+			except KeyboardInterrupt:
+				dpaths = None
+				fpaths = None
+
+			if dpaths is None and fpaths is None:
+				sys.exit("\n\nExiting...\n")
+
+			elif dpaths == [] and fpaths == []:
+				print("All paths entered are invalid, please retry")
+				break
+
+			else:
+				try:
+					secure_type = input("Type [E] for encrypt, [D] to decrypt and [A] for auto: ").upper()
+				except KeyboardInterrupt:
+					sys.exit("\n\nExiting...\n")
+
+				try:
+					user_exts = input("exts? (<blank>: revert to def, 'all', 'gif' or add per reqr.): ").strip()
+				except KeyboardInterrupt:
+					sys.exit("\n\nExiting...\n")
+
+				user_exts = user_exts.strip().lower()
+
+				if user_exts == 'def':
+					exts = EXTS
+				elif user_exts == 'all':
+					exts = ALL_MEDIA_EXTS
+				elif user_exts == 'gif':
+					exts = ADD_GIF_EXTS
+				else:
+					# exts = [x for x in [i if i.startswith('.') else f".{i}" for i in user_exts.split()] if x in ALL_MEDIA_EXTS]
+					exts = [i if i.startswith('.') else f".{i}" for i in user_exts.split()]
+
+				if (secure_type == "A"):
+					cmt = cm_type(dpaths=dpaths, thresh=0.6)
+					cryptographic_operation(dpaths, exts, enc=not cmt, fpaths=fpaths)
+
+				elif (secure_type in ["E", "D"]):
+					cryptographic_operation(dpaths, exts, enc=['D', 'E'].index(secure_type), fpaths=fpaths)
+
+				else:
+					try:
+						print("Invalid value, retry or ^C to exit: ")
+					except KeyboardInterrupt:
+						sys.exit("Aborting and exiting")
+
+				# Pygame replaced with vlc
+				# pygame.mixer.music.play()
+				media = vlc.MediaPlayer(startup_sound)
+				# media.play()
+
+				print("\n-- Operation Completed Successfully --")
+				print("Type ^C to exit\n")
+
+if __name__ == "__main__":
+	run()
+
