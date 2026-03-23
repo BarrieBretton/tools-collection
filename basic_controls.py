@@ -30,64 +30,58 @@ except ImportError:
         raise
 
 system_is_muted = 0
+volume = None
 
 def device_refresh():
-    devices = AudioUtilities.GetSpeakers()
-    interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-    volume = cast(interface, POINTER(IAudioEndpointVolume))
+    global volume
+    if volume is None:
+        devices = AudioUtilities.GetSpeakers()
+        volume = devices.EndpointVolume
     return volume
 
 def get_master_volume():
-    if win_style:
-        volume = device_refresh()
-        return int(round(volume.GetMasterVolumeLevelScalar() * 100))
-    else:
-        mixer = alsaaudio.Mixer()
-        vol = mixer.getvolume()
-        if isinstance(vol, list):
-            if vol[0] == vol[1]:
-                vol = vol[0]
-        return vol
+    volume = device_refresh()
+    return int(round(volume.GetMasterVolumeLevelScalar() * 100))
 
 def set_master_volume(scalarVolume):
-    if win_style:
-        # Using Windows OS
-        volume = device_refresh()
-        if scalarVolume >= 0:
-            volume.SetMasterVolumeLevelScalar(scalarVolume/100, None)
-            volume.SetMute(not bool(scalarVolume), None)
-    else:
-        # Using ALSA for Linux
-        mixer = alsaaudio.Mixer()
-        mixer.setvolume(scalarVolume)
+    volume = device_refresh()
+    if scalarVolume >= 0:
+        volume.SetMasterVolumeLevelScalar(scalarVolume/100, None)
+        volume.SetMute(not bool(scalarVolume), None)
 
 def update_values(root, mv_icon, v, b):
-    global system_is_muted
-
+    global system_is_muted, last_brightness, last_volume
     try:
         current_brightness = sbc.get_brightness()
-    except sbc.ScreenBrightnessError:
-        try:
-            current_brightness = sbc.get_brightness(display=0)
-        except sbc.ScreenBrightnessError:
-            current_brightness = 0
-
-    if b.get() != current_brightness:
-        b.set(current_brightness)
+        if isinstance(current_brightness, (list, tuple)):
+            current_brightness = current_brightness[0]
+        if 'last_brightness' not in globals() or b.get() != current_brightness:
+            b.set(current_brightness)
+            last_brightness = current_brightness
+    except Exception:
+        pass
 
     current_master_volume = get_master_volume()
-    if v.get() != current_master_volume:
+    if 'last_volume' not in globals() or v.get() != current_master_volume:
         v.set(current_master_volume)
+        last_volume = current_master_volume
 
     volume = device_refresh()
     if system_is_muted != volume.GetMute():
         toggle_system_mute(root, mv_icon, v)
 
-    root.after(100, lambda: update_values(root, mv_icon, v, b))
+    root.after(500, lambda: update_values(root, mv_icon, v, b))
+
+
 
 
 def set_b(value):
-    sbc.set_brightness(int(value))
+    monitors = sbc.list_monitors()
+    for monitor in monitors:
+        try:
+            sbc.set_brightness(int(value), display=monitor)
+        except Exception:
+            pass
 
 def set_mv(root, mv_icon, value, v):
     global system_is_muted
@@ -212,27 +206,22 @@ def hide_cached_volume(root, mv_icon, v, cached_vol_label):
 
 
 def toggle_system_mute(root, mv_icon, v):
-    global system_is_muted, cached_vol, win_style, cached_vol_label
+    global system_is_muted, cached_vol, cached_vol_label
 
-    # Toggle flag first
     system_is_muted = 1 - system_is_muted
+    volume = device_refresh()
 
     if system_is_muted:
         cached_vol = get_master_volume()
         set_master_volume(0)
         v.configure(bg="#333")
-        # v.set(0)
         show_cached_volume(root, mv_icon, v, cached_vol)
     else:
         set_master_volume(cached_vol)
         v.configure(bg="#2A52AA")
         hide_cached_volume(root, mv_icon, v, cached_vol_label)
 
-    if win_style:
-        volume = device_refresh()
-
-        volume.SetMute(system_is_muted, None)
-
+    volume.SetMute(system_is_muted, None)
 
     # # Master Volume Icon Init
     # im = PIL.Image.open("./res/volume-disabled-icon.png")
