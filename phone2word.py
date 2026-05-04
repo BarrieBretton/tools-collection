@@ -1,30 +1,25 @@
-# phone to word
-
 from sys import argv
 
-w2n=[
-    'O_O',
-    'abc',
-    'def',
-    'ghi',
-    'jkl',
-    'mno',
-    'pqrs',
-    'tuv',
-    'wxyz',
-]
+LETTER_TO_DIGIT = {
+    **dict.fromkeys("abc", "2"),
+    **dict.fromkeys("def", "3"),
+    **dict.fromkeys("ghi", "4"),
+    **dict.fromkeys("jkl", "5"),
+    **dict.fromkeys("mno", "6"),
+    **dict.fromkeys("pqrs", "7"),
+    **dict.fromkeys("tuv", "8"),
+    **dict.fromkeys("wxyz", "9"),
+}
 
-def find_letter(letter):
+def phone_to_word(text: str) -> str:
+    return "".join(LETTER_TO_DIGIT.get(ch.lower(), ch) for ch in text)
+
+def main() -> None:
     try:
-    	return str(w2n.index([x for x in w2n if letter in x][0])+1)
-    except Exception:
-        return ' '
+        raw_num = argv[1]
+        print(phone_to_word(raw_num))
+    except IndexError:
+        print("Sorry, there was an error!")
 
-try:
-    raw_num=argv[1]
-    processed_num=''.join([find_letter(i) if i.isalpha() else i for i in raw_num])
-    print(processed_num)
-except Exception:
-    print('Sorry, there was an error!')
-
-# Try: 1-833-magwrld
+if __name__ == "__main__":
+    main()

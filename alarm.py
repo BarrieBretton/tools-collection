@@ -1,130 +1,211 @@
+"""
+Simple alarm module with importable API and CLI support.
+
+Examples:
+    python alarm.py 07 30
+    python alarm.py 07 30 15 --sound "/path/to/file.mp3" --label "Standup"
+
+Import usage:
+    from pathlib import Path
+    from datetime import datetime
+    from alarm import AlarmConfig, set_alarm, set_alarm_at
+
+    set_alarm(AlarmConfig(hour=7, minute=30, label="Wake up"))
+
+    set_alarm_at(
+        target=datetime(2026, 5, 8, 13, 42, 35),
+        sound_path=Path("/path/to/file.mp3"),
+        label="Codex reset",
+    )
+"""
+
+from __future__ import annotations
+
+import argparse
 import os
-os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import sys
 import time
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Optional
+
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
+
 import pygame
-# import winsound
-import contextlib
 
-from datetime import datetime as dt
 
-pygame.mixer.init()
+DEFAULT_SOUND_PATHS = {
+    "linux": Path("/media/vivojay/VIVOSANDISK/VIVAN/MUSIC/dl-songs/MarianaPlayer/alayna - Sugar [Official Audio].mp3"),
+    "win32": Path(r"C:\Users\Vivo Jay\Music\MarianaPlayer\Chymes - Enemy.mp3"),
+}
 
-if sys.platform == "linux":
-    alarm_sound_path = r'/media/vivojay/VIVOSANDISK/VIVAN/MUSIC/dl-songs/MarianaPlayer/alayna - Sugar [Official Audio].mp3'
-elif sys.platform == "win32":
-    alarm_sound_path = r'C:\Users\Vivo Jay\Music\MarianaPlayer\Chymes - Enemy.mp3'
-description = ""
 
-with contextlib.suppress(Exception):
-    if not sys.argv[-1].isnumeric():
-        alarm_sound_path = sys.argv[-1]
+class AlarmError(RuntimeError):
+    """Raised when alarm configuration is invalid."""
 
-def print_help():
-    help_text = """Usage: py alarm.py (HH [MM] [SS]) [alarm sound path] [alarm-description-text]"""
-    sys.exit(help_text)
 
-def set_alarm_music(sound=None):
-    invalid_path = True
-    if sound:
-        if os.path.exists(sound):
-            invalid_path = False
+@dataclass(slots=True)
+class AlarmConfig:
+    hour: int
+    minute: int = 0
+    second: int = 0
+    sound_path: Optional[Path] = None
+    label: str = ""
 
-    if invalid_path:
-        if sound:
-            print(f'ERROR: Alarm sound is set to invalid path --> {sound}\nPlease reset the path... Aborting')
-        else:
-            print('ERROR: Alarm sound has not been set. Please set it and restart alarm... Aborting')
-        return invalid_path
+    def validate(self) -> None:
+        if not (0 <= self.hour <= 23):
+            raise AlarmError("Hour must be between 0 and 23.")
+        if not (0 <= self.minute <= 59):
+            raise AlarmError("Minute must be between 0 and 59.")
+        if not (0 <= self.second <= 59):
+            raise AlarmError("Second must be between 0 and 59.")
 
-def ring(sound):
-    print()
-    print("Alarm Activated")
-    print(f'Playing: {sound}')
-    pygame.mixer.music.load(sound)
+        if self.sound_path is not None and not self.sound_path.is_file():
+            raise AlarmError(f"Invalid alarm sound path: {self.sound_path}")
+
+    @property
+    def target_today(self) -> datetime:
+        now = datetime.now().astimezone()
+        return now.replace(
+            hour=self.hour,
+            minute=self.minute,
+            second=self.second,
+            microsecond=0,
+        )
+
+
+def get_default_sound_path() -> Optional[Path]:
+    return DEFAULT_SOUND_PATHS.get(sys.platform)
+
+
+def initialize_audio() -> None:
+    if not pygame.mixer.get_init():
+        pygame.mixer.init()
+
+
+def format_timedelta(delta: timedelta) -> str:
+    total_seconds = max(0, int(delta.total_seconds()))
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours:02d}h {minutes:02d}m {seconds:02d}s"
+
+
+def play_sound(sound_path: Path) -> None:
+    initialize_audio()
+
+    print("\nAlarm Activated")
+    print(f"Playing: {sound_path}")
+
+    pygame.mixer.music.load(str(sound_path))
     pygame.mixer.music.play()
 
-def set_alarm(timeobject, description, alarm_sound_path):
-    if not all(i.isnumeric() for i in timeobject):
-        print('ERROR: Alarm time object is INVALID. Please reset... Aborting')
-        return
+    try:
+        while pygame.mixer.music.get_busy():
+            time.sleep(0.2)
+    except KeyboardInterrupt:
+        pygame.mixer.music.stop()
+        print("Stopped Alarm")
 
-    timeobject = [int(i) for i in timeobject]
-    
-    if len(timeobject) > 3:
-        print('ERROR: Alarm time object has more than 3 terms and is therefore INVALID. Please reset... Aborting')
-        return
 
-    if len(timeobject) == 0:
-        print('ERROR: Alarm time object is EMPTY. Please reset... Aborting')
-        return
+def wait_until(target: datetime) -> None:
+    now = datetime.now(target.tzinfo) if target.tzinfo else datetime.now()
 
-    while len(timeobject) != 3:
-        timeobject.append(0)
+    if target <= now:
+        raise AlarmError(f"Alarm time has already passed: {target}")
 
-    if [dt.now().hour, dt.now().minute, dt.now().second] > timeobject:
-        print('ERROR: Alarm time object has already passed. Please reset... Aborting')
-        return
+    wait_duration = target - now
 
-    if set_alarm_music(alarm_sound_path):
-        return
-
-    tdiff = dt(1900, 1, 1, *[int(i) for i in timeobj]) - dt(1900, 1, 1, dt.now().hour, dt.now().minute, dt.now().second)
-    tdiff_string = time.strftime("%Hh %Mm %Ss", time.gmtime(tdiff.seconds))
-
-    print(f'Alarm loaded for {str(timeobject[0]).zfill(2)}{timeobject[1]}{timeobject[2]} hours --> i.e.({dt.strftime(dt.strptime(":".join([str(i) for i in timeobject]), "%H:%M:%S"), "%I:%M:%S %p")})')
-    print(f"Alarm goes off in: {tdiff_string} ")
-
-    if description.strip(): print(f"Label: {description}")
-    else: print("[NO LABEL]")
-    
+    print(
+        f"Alarm set for {target.strftime('%Y-%m-%d %H:%M:%S %Z')} "
+        f"({target.strftime('%I:%M:%S %p')})"
+    )
+    print(f"Alarm goes off in: {format_timedelta(wait_duration)}")
     print()
 
-    skipped = False
     try:
-        while [dt.now().hour, dt.now().minute] < timeobject[:2]: pass
+        while True:
+            now = datetime.now(target.tzinfo) if target.tzinfo else datetime.now()
+            remaining = (target - now).total_seconds()
+            if remaining <= 0:
+                break
+            time.sleep(min(0.5, max(0.1, remaining)))
     except KeyboardInterrupt:
-        skipped = True
-        print('Skipped Alarm')
+        raise AlarmError("Skipped Alarm") from None
+
+
+def set_alarm(config: AlarmConfig) -> None:
+    if config.sound_path is None:
+        config.sound_path = get_default_sound_path()
+
+    config.validate()
+
+    target = config.target_today
+
+    print(f"Label: {config.label}" if config.label.strip() else "[NO LABEL]")
+    wait_until(target)
+
+    if config.label.strip():
+        print(config.label)
+
+    play_sound(config.sound_path)
+
+
+def set_alarm_at(target: datetime, sound_path: Path | str | None = None, label: str = "") -> None:
+    if sound_path is None:
+        resolved_sound_path = get_default_sound_path()
+    else:
+        resolved_sound_path = Path(sound_path)
+
+    if resolved_sound_path is None:
+        raise AlarmError("Alarm sound has not been set.")
+
+    if not resolved_sound_path.is_file():
+        raise AlarmError(f"Invalid alarm sound path: {resolved_sound_path}")
+
+    print(f"Label: {label}" if label.strip() else "[NO LABEL]")
+    wait_until(target)
+
+    if label.strip():
+        print(label)
+
+    play_sound(resolved_sound_path)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="alarm",
+        description="Set an alarm for today using hour, minute, and optional second.",
+    )
+    parser.add_argument("hour", type=int, help="Hour in 24-hour format (0-23)")
+    parser.add_argument("minute", nargs="?", type=int, default=0, help="Minute (0-59)")
+    parser.add_argument("second", nargs="?", type=int, default=0, help="Second (0-59)")
+    parser.add_argument("--sound", type=Path, default=None, help="Path to the alarm sound file")
+    parser.add_argument("--label", default="", help="Optional alarm label/description")
+    return parser
+
+
+def main() -> int:
+    parser = build_parser()
+    args = parser.parse_args()
+
+    config = AlarmConfig(
+        hour=args.hour,
+        minute=args.minute,
+        second=args.second,
+        sound_path=args.sound,
+        label=args.label,
+    )
 
     try:
-        with contextlib.suppress(KeyboardInterrupt):
-            while dt.now().second < timeobject[2]: pass
-    except KeyboardInterrupt:
-        if not skipped:
-            print('Skipped Alarm')
+        set_alarm(config)
+    except AlarmError as exc:
+        parser.exit(status=1, message=f"Error: {exc}\n")
+    except pygame.error as exc:
+        parser.exit(status=1, message=f"Audio error: {exc}\n")
 
-    if not skipped:
-        print(description)
-        ring(alarm_sound_path)
+    return 0
 
-    try:
-        while pygame.mixer.music.get_busy(): pass
-    except KeyboardInterrupt:
-        if not skipped:
-            print('Stopped Alarm')
 
 if __name__ == "__main__":
-    timeobj = [i for i in sys.argv[1:] if i.isnumeric()]
-
-    if len(sys.argv) == 2 and sys.argv[1] in "-h --help".split():
-        print_help()
-
-    if os.path.isfile(sys.argv[-1]) and not sys.argv[-2].isnumeric():
-        alarm_sound_path = sys.argv[-1]
-        description = sys.argv[-2]
-
-    elif os.path.isfile(sys.argv[-2]) and not sys.argv[-1].isnumeric():
-        alarm_sound_path = sys.argv[-2]
-        description = sys.argv[-1]
-
-    elif os.path.isfile(sys.argv[-1]):
-        alarm_sound_path = sys.argv[-1]
-
-    elif not sys.argv[-1].isnumeric():
-        description = sys.argv[-1]
-    
-    set_alarm(timeobject=timeobj,
-              description=description,
-              alarm_sound_path=alarm_sound_path)
-
+    raise SystemExit(main())
